@@ -98,7 +98,12 @@ export function LinksTable({ links, onDeleted, onChecked }: Props) {
           {links.map((link) => (
             <tr key={link.slug}>
               <td className="px-4 py-3 align-top">
-                <a href={`/${link.slug}`} className="font-medium text-slate-900 hover:underline">
+                <a
+                  href={`/${link.slug}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium text-slate-900 hover:underline"
+                >
                   go/{link.slug}
                 </a>
                 {link.description && (
@@ -106,7 +111,14 @@ export function LinksTable({ links, onDeleted, onChecked }: Props) {
                 )}
               </td>
               <td className="max-w-xs truncate px-4 py-3 align-top text-slate-600" title={link.url}>
-                {link.url}
+                <a
+                  href={link.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:underline"
+                >
+                  {link.url}
+                </a>
               </td>
               <td className="px-4 py-3 align-top">
                 <HealthBadge link={link} />
