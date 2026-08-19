@@ -53,8 +53,22 @@ examples in the prompt) are seeded on boot.
   text, an `aria-live` status region announcing create success/failure,
   a real `<table>` with scoped headers, focus moved to the first invalid
   field on a rejected submit.
-- **Tests**: unit tests for the validation schema (slug/url edge cases)
-  and the store (create, duplicate, delete, visit tracking, search).
+- **"Did you mean" 404 suggestions** (`src/lib/fuzzy.ts`): visiting an
+  unknown slug (e.g. `/oncal`) runs a Levenshtein distance against
+  existing slugs and offers close matches instead of a dead end — a typo
+  is the most likely reason a go-link 404s, and just saying "create it"
+  ignores that.
+- **On-demand link health checks** (`src/lib/health.ts`,
+  `POST /api/links/[slug]/check`): probes a shortcut's destination
+  (HEAD, falling back to GET for servers that reject HEAD) and records
+  `healthy` / `broken` with the status code or error, surfaced as a badge
+  in the table with a "Check" / "Check all" action. Building this
+  surfaced a real false-positive: Figma's CDN 403s a User-Agent-less
+  request outright, which would otherwise misreport a live link as
+  broken — fixed by sending a descriptive UA (`src/lib/health.ts`).
+- **Tests**: unit tests for the validation schema (slug/url edge cases),
+  the store (create, duplicate, delete, visit tracking, search), and the
+  fuzzy-match suggestion logic.
 
 ## Assumptions
 
@@ -87,9 +101,23 @@ examples in the prompt) are seeded on boot.
   reachable outside a trusted network.
 - **No pagination/virtualization** on the list — fine at seed-data scale,
   would matter once teams have hundreds of shortcuts.
+- **Health checks are on-demand, not scheduled.** Clicking "Check" / "Check
+  all" runs the probe inline rather than on a background schedule — no
+  cron/queue infra needed for a first iteration, at the cost of stale
+  health status between clicks. A production version would run this on a
+  schedule and probably as a queued job so N links don't mean N
+  simultaneous outbound requests from a single API call.
+- **Health checks are a best-effort signal, not ground truth.** A 403/429
+  can mean "actually down" or "this CDN doesn't like automated requests"
+  — the UA fix narrows that gap but doesn't close it. Worth surfacing the
+  status code/error in the badge tooltip rather than a bare pass/fail, so
+  a human can judge.
 
 ## If I had another day
 
+- Move health checks to a scheduled background job instead of on-demand,
+  and store a short history instead of only the latest result (so a
+  flaky link is visibly flaky, not just "broken since 2pm").
 - Swap the in-memory `Map` for Postgres (the store module is already the
   seam for this) and add an integration test against a real database.
 - Slug **edit** (currently create + delete only; no update-in-place, so

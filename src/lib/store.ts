@@ -1,3 +1,4 @@
+import type { HealthCheckResult } from "./health";
 import type { CreateLinkInput, GoLink } from "./types";
 
 /**
@@ -10,7 +11,6 @@ import type { CreateLinkInput, GoLink } from "./types";
  * module and quietly wipe seeded data between requests.
  */
 declare global {
-  // eslint-disable-next-line no-var
   var __goLinksStore: Map<string, GoLink> | undefined;
 }
 
@@ -24,6 +24,7 @@ function seed(): Map<string, GoLink> {
       createdAt: now,
       updatedAt: now,
       visitCount: 0,
+      health: "unknown",
     },
     {
       slug: "oncall",
@@ -32,6 +33,7 @@ function seed(): Map<string, GoLink> {
       createdAt: now,
       updatedAt: now,
       visitCount: 0,
+      health: "unknown",
     },
     {
       slug: "payroll",
@@ -40,6 +42,7 @@ function seed(): Map<string, GoLink> {
       createdAt: now,
       updatedAt: now,
       visitCount: 0,
+      health: "unknown",
     },
   ];
   return new Map(seeded.map((link) => [link.slug, link]));
@@ -88,6 +91,7 @@ export function createLink(input: CreateLinkInput): GoLink {
     createdAt: now,
     updatedAt: now,
     visitCount: 0,
+    health: "unknown",
   };
   store.set(input.slug, link);
   return link;
@@ -102,6 +106,16 @@ export function recordVisit(slug: string): void {
   if (!link) return;
   link.visitCount += 1;
   link.lastVisitedAt = new Date().toISOString();
+}
+
+export function recordHealthCheck(slug: string, result: HealthCheckResult): GoLink | undefined {
+  const link = getStore().get(slug);
+  if (!link) return undefined;
+  link.health = result.health;
+  link.lastCheckedAt = result.checkedAt;
+  link.lastCheckStatus = result.statusCode;
+  link.lastCheckError = result.error;
+  return link;
 }
 
 /** Test-only escape hatch to reset state between test cases. */

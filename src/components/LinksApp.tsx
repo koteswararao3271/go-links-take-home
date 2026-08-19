@@ -14,6 +14,7 @@ export function LinksApp({ initialLinks, prefillSlug }: Props) {
   const [links, setLinks] = useState<GoLink[]>(initialLinks);
   const [query, setQuery] = useState("");
   const [isPending, startTransition] = useTransition();
+  const [checkingAll, setCheckingAll] = useState(false);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -33,6 +34,28 @@ export function LinksApp({ initialLinks, prefillSlug }: Props) {
     setLinks((prev) => prev.filter((l) => l.slug !== slug));
   }
 
+  function handleChecked(link: GoLink) {
+    setLinks((prev) => prev.map((l) => (l.slug === link.slug ? link : l)));
+  }
+
+  async function handleCheckAll() {
+    setCheckingAll(true);
+    try {
+      const results = await Promise.allSettled(
+        links.map((link) =>
+          fetch(`/api/links/${link.slug}/check`, { method: "POST" }).then((res) => res.json())
+        )
+      );
+      for (const result of results) {
+        if (result.status === "fulfilled" && result.value.link) {
+          handleChecked(result.value.link as GoLink);
+        }
+      }
+    } finally {
+      setCheckingAll(false);
+    }
+  }
+
   return (
     <div className="flex flex-col gap-8">
       <CreateLinkForm onCreated={handleCreated} initialSlug={prefillSlug} />
@@ -42,19 +65,29 @@ export function LinksApp({ initialLinks, prefillSlug }: Props) {
           <label htmlFor="search" className="text-sm font-medium text-slate-700">
             Existing shortcuts
           </label>
-          <input
-            id="search"
-            type="search"
-            value={query}
-            onChange={(e) =>
-              startTransition(() => setQuery(e.target.value))
-            }
-            placeholder="Search by slug or description"
-            className="w-64 rounded-md border border-slate-300 px-3 py-1.5 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
-          />
+          <div className="flex items-center gap-3">
+            <input
+              id="search"
+              type="search"
+              value={query}
+              onChange={(e) =>
+                startTransition(() => setQuery(e.target.value))
+              }
+              placeholder="Search by slug or description"
+              className="w-64 rounded-md border border-slate-300 px-3 py-1.5 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+            />
+            <button
+              type="button"
+              onClick={handleCheckAll}
+              disabled={checkingAll || links.length === 0}
+              className="whitespace-nowrap rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+            >
+              {checkingAll ? "Checking…" : "Check all"}
+            </button>
+          </div>
         </div>
         <div aria-busy={isPending}>
-          <LinksTable links={filtered} onDeleted={handleDeleted} />
+          <LinksTable links={filtered} onDeleted={handleDeleted} onChecked={handleChecked} />
         </div>
       </div>
     </div>

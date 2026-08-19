@@ -6,6 +6,7 @@ import {
   DuplicateSlugError,
   getLink,
   listLinks,
+  recordHealthCheck,
   recordVisit,
 } from "../store";
 
@@ -22,6 +23,7 @@ describe("store", () => {
   it("creates a new link", () => {
     const link = createLink({ slug: "docs", url: "https://example.com/docs" });
     expect(link.visitCount).toBe(0);
+    expect(link.health).toBe("unknown");
     expect(getLink("docs")).toEqual(link);
   });
 
@@ -56,5 +58,23 @@ describe("store", () => {
     createLink({ slug: "runbook-auth", url: "https://example.com" });
     expect(listLinks("payments")).toHaveLength(1);
     expect(listLinks("runbook")).toHaveLength(2);
+  });
+
+  it("records a health check result", () => {
+    createLink({ slug: "checked", url: "https://example.com" });
+    const link = recordHealthCheck("checked", {
+      health: "broken",
+      statusCode: 500,
+      checkedAt: "2026-01-01T00:00:00.000Z",
+    });
+    expect(link?.health).toBe("broken");
+    expect(link?.lastCheckStatus).toBe(500);
+    expect(getLink("checked")?.health).toBe("broken");
+  });
+
+  it("returns undefined recording a health check for a missing slug", () => {
+    expect(
+      recordHealthCheck("nope", { health: "healthy", checkedAt: "2026-01-01T00:00:00.000Z" })
+    ).toBeUndefined();
   });
 });
